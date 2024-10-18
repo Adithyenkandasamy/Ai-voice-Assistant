@@ -1,64 +1,95 @@
-import pyttsx3
 import os
-import webbrowser as wb
-import pyautogui
-import respond as rs
-import take_command as tc
-import pyjokes
-import date_time as dt
-import main as m  # Import the MyAIModel class and any other necessary items
-import google.generativeai as genai
+import speech_recognition as sr
+from google.cloud import speech
+from google.cloud import texttospeech
 
-assis_name = "Jarvis"
-boss_name = "Adhii"
+# Set up Google Cloud credentials
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "path_to_your_google_credentials.json"
 
-# AI Model class that integrates with the Gemini API
-class MyAIModel:
-    def __init__(self):
-        # Configure API key for Gemini API
-        genai.configure(api_key="YOUR_GEMINI_API_KEY")
-        self.model = genai.GenerativeModel("gemini-1.5-flash")
+# Function to recognize speech using Google's Speech-to-Text API
+def recognize_speech():
+    r = sr.Recognizer()
+    
+    with sr.Microphone() as source:
+        print("Listening...")
+        audio = r.listen(source)
 
-    def test_text_gen_text_only_prompt(self, prompt):
-        # Generate response from Gemini AI based on user input
-        response = self.model.generate_content(prompt)
-        return response
+    try:
+        print("Recognizing...")
+        speech_client = speech.SpeechClient()
+        audio_content = audio.get_wav_data()
+        audio = speech.RecognitionAudio(content=audio_content)
 
-# Instance of AI Model
-my_model = MyAIModel()
+        config = speech.RecognitionConfig(
+            encoding=speech.RecognitionConfig.AudioEncoding.LINEAR16,
+            sample_rate_hertz=16000,
+            language_code="en-US",
+        )
 
-# Function to tell jokes
-def tell_jokes():
-    joke = pyjokes.get_joke()
-    return joke
+        response = speech_client.recognize(config=config, audio=audio)
+        for result in response.results:
+            return result.alternatives[0].transcript
 
-# Respond function to handle user input
-def respond(text):
-    if "hello" in text:
-        rs.say(dt.wishing())
-        rs.say("How can I help you?")
-    elif "activate" in text:
-        rs.say("Activating voice assistant")
-        while True:
-            rs.say("I'm listening. Please give a prompt.")
-            my_idea = tc.takecommand().lower()  # Get voice input from the user
-            if my_idea:  # Check if there is any input
-                content = my_model.test_text_gen_text_only_prompt(my_idea)  # Get AI-generated content
-                rs.say(content)  # Speak out the generated content
+    except Exception as e:
+        print(f"Error recognizing speech: {str(e)}")
+        return None
 
-            # Option to break the loop after a command
-            if "exit" in my_idea or "stop" in my_idea:
-                rs.say("Exiting voice assistant mode.")
+# Function to convert text to speech using Google's Text-to-Speech API
+def text_to_speech(text):
+    client = texttospeech.TextToSpeechClient()
+
+    input_text = texttospeech.SynthesisInput(text=text)
+
+    voice = texttospeech.VoiceSelectionParams(
+        language_code="en-US", 
+        ssml_gender=texttospeech.SsmlVoiceGender.NEUTRAL
+    )
+
+    audio_config = texttospeech.AudioConfig(
+        audio_encoding=texttospeech.AudioEncoding.MP3
+    )
+
+    response = client.synthesize_speech(
+        input=input_text, 
+        voice=voice, 
+        audio_config=audio_config
+    )
+
+    # Save the audio file
+    with open("output.mp3", "wb") as out:
+        out.write(response.audio_content)
+        print("Audio content written to 'output.mp3'")
+
+    # Play the speech
+    os.system("mpg321 output.mp3")  # For Linux (use appropriate player for your OS)
+
+# Main assistant function
+def jarvis_assistant():
+    print("Welcome to Jarvis, your voice assistant!")
+    
+    while True:
+        # Recognize speech input
+        command = recognize_speech()
+        if command:
+            print(f"You said: {command}")
+
+            # Simple command processing logic
+            if "hello" in command.lower():
+                response = "Hello! How can I assist you today?"
+            elif "how are you" in command.lower():
+                response = "I'm Jarvis, your AI assistant, and I'm here to help you!"
+            elif "exit" in command.lower() or "bye" in command.lower():
+                response = "Goodbye! Have a great day!"
+                text_to_speech(response)
                 break
-    elif "tell me a joke" in text:
-        rs.say(tell_jokes())
-    elif "Bye" in text or "bhai" in text:
-        rs.say("Bye sir, have a good day.")
-        exit()
+            else:
+                response = "I'm sorry, I didn't understand that."
 
-# Main loop for voice assistant
-while True:
-    rs.say("Say something, sir")
-    text = tc.takecommand()  # Wait for a command from the user
-    print(text)
-    respond(text)  # Respond based on the input
+            # Convert the response text to speech
+            text_to_speech(response)
+        else:
+            print("No command recognized.")
+
+# Run the assistant
+if __name__ == "__main__":
+    jarvis_assistant()
