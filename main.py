@@ -49,10 +49,12 @@ def respond(text, model):
         rs.say("I am fine")
     elif "tell me a joke" in text:
         rs.say(tell_jokes())
-    elif "AI mode" in text:
+    elif "mode" in text:
+
         rs.say("Entering AI mode. How can I assist?")
         ai_prompt = tc.takecommand()
         ai_response = generate_ai_response(model, ai_prompt)
+        rs.say("I am analyzing")
         rs.say(ai_response)
     elif "instagram" in text:
         rs.say("Opening Instagram")
