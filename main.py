@@ -50,12 +50,12 @@ def respond(text, model):
     elif "tell me a joke" in text:
         rs.say(tell_jokes())
     elif "mode" in text:
-
         rs.say("Entering AI mode. How can I assist?")
-        ai_prompt = tc.takecommand()
-        ai_response = generate_ai_response(model, ai_prompt)
-        rs.say("I am analyzing")
-        rs.say(ai_response)
+        while True:
+            ai_prompt = tc.takecommand()
+            ai_response = generate_ai_response(model, ai_prompt)
+            rs.say("I am analyzing")
+            rs.say(ai_response)
     elif "instagram" in text:
         rs.say("Opening Instagram")
         wb.open("https://www.instagram.com")
